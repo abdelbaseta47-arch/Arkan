@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -5,24 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أركان الخليج (ERP)</title>
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        /* حركات الظهور */
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hide { display: none !important; }
+        
+        /* تخصيص شريط التمرير */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-screen overflow-hidden">
 
-    <!-- شاشة تسجيل الدخول -->
+    <!-- ========================================== -->
+    <!-- 1. شاشة تسجيل الدخول -->
+    <!-- ========================================== -->
     <div id="view-login" class="min-h-screen flex items-center justify-center bg-slate-100 p-4 fade-in">
         <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 relative overflow-hidden">
             <div class="text-center mb-8 relative z-10">
@@ -42,35 +53,42 @@
                     <input type="password" id="login-pass" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center" required placeholder="***" dir="ltr">
                 </div>
                 <div id="login-error" class="hide p-3 bg-red-50 text-red-700 rounded-lg text-sm font-bold flex items-center gap-2">
-                    <i class="ph-fill ph-warning-circle"></i> <span id="login-error-msg"></span>
+                    <i class="ph-fill ph-warning-circle text-lg"></i> <span id="login-error-msg"></span>
                 </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md">تسجيل الدخول</button>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                    تسجيل الدخول <i class="ph-bold ph-sign-in"></i>
+                </button>
             </form>
-            <div class="mt-6 text-xs text-slate-400 text-center font-mono">
-                Admin: 1000 | PM: 2000 | Worker: 1001, 1002<br>Password: 123
+            <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 text-center font-mono leading-relaxed">
+                <span class="font-bold text-slate-700">بيانات الدخول الافتراضية:</span><br>
+                المدير العام: <span class="text-blue-600 font-bold">1000</span> | مدير مشروع: <span class="text-blue-600 font-bold">2000</span><br>
+                عامل 1: <span class="text-emerald-600 font-bold">1001</span> | عامل 2: <span class="text-emerald-600 font-bold">1002</span><br>
+                <span class="inline-block mt-1 pt-1 border-t border-slate-200 w-full">جميع كلمات المرور: <span class="text-rose-500 font-bold">123</span></span>
             </div>
         </div>
     </div>
 
-    <!-- شاشة العامل -->
+    <!-- ========================================== -->
+    <!-- 2. شاشة العامل (Worker View) -->
+    <!-- ========================================== -->
     <div id="view-worker" class="hide min-h-screen bg-slate-50 flex flex-col fade-in">
         <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-200">
             <div>
                 <h1 class="font-bold text-slate-800 text-lg">بوابة العمال والإنتاج</h1>
                 <p id="worker-header-info" class="text-xs text-emerald-600 font-bold"></p>
             </div>
-            <button onclick="appLogout()" class="w-10 h-10 bg-slate-100 hover:bg-red-50 rounded-full flex items-center justify-center text-slate-600 hover:text-red-600 transition-colors">
+            <button onclick="appLogout()" class="w-10 h-10 bg-slate-100 hover:bg-red-50 rounded-full flex items-center justify-center text-slate-600 hover:text-red-600 transition-colors shadow-sm">
                 <i class="ph-bold ph-power text-xl"></i>
             </button>
         </header>
 
-        <main class="flex-1 p-4 max-w-md mx-auto w-full mt-4 space-y-6">
+        <main class="flex-1 p-4 max-w-md mx-auto w-full mt-4 space-y-6 overflow-y-auto">
             <div id="worker-error" class="hide p-4 bg-red-50 text-red-700 rounded-xl flex items-start gap-3 text-sm font-bold border border-red-100">
-                <i class="ph-fill ph-warning-circle text-lg"></i> <span id="worker-error-msg"></span>
+                <i class="ph-fill ph-warning-circle text-lg flex-shrink-0 mt-0.5"></i> <span id="worker-error-msg"></span>
             </div>
 
             <div id="worker-toast" class="hide p-4 bg-emerald-50 text-emerald-700 rounded-xl flex items-start gap-3 text-sm font-bold border border-emerald-100">
-                <i class="ph-fill ph-check-circle text-lg"></i> <span id="worker-toast-msg"></span>
+                <i class="ph-fill ph-check-circle text-lg flex-shrink-0 mt-0.5"></i> <span id="worker-toast-msg"></span>
             </div>
 
             <!-- حالة تسجيل الحضور -->
@@ -78,24 +96,24 @@
                 <h2 class="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><i class="ph-fill ph-play-circle text-emerald-500 text-xl"></i> بدء جلسة عمل جديدة</h2>
                 
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">المشروع (Required)</label>
-                    <select id="worker-sel-project" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المشروع (مطلوب)</label>
+                    <select id="worker-sel-project" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700"></select>
                 </div>
                 
                 <div id="worker-villa-container" class="hide">
-                    <label class="block text-xs font-bold text-slate-600 mb-1">المبنى / الفيلا (Optional)</label>
-                    <select id="worker-sel-villa" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المبنى / الفيلا (اختياري)</label>
+                    <select id="worker-sel-villa" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700"></select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">نوع العمل / النشاط (Required)</label>
-                    <select id="worker-sel-activity" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">نوع العمل / النشاط (مطلوب)</label>
+                    <select id="worker-sel-activity" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700"></select>
                 </div>
 
                 <button onclick="handleCheckIn(false)" id="btn-checkin" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 mt-6 transition-all shadow-md">
                     <i class="ph-bold ph-map-pin"></i> تسجيل الحضور (فحص GPS)
                 </button>
-                <button onclick="handleCheckIn(true)" class="w-full text-[10px] text-slate-400 underline mt-2 text-center">تجاوز الـ GPS (للتجربة من الكمبيوتر)</button>
+                <button onclick="handleCheckIn(true)" class="w-full text-[11px] font-bold text-slate-400 hover:text-blue-600 underline mt-3 text-center transition-colors">تجاوز الـ GPS (للتجربة من الكمبيوتر)</button>
             </div>
 
             <!-- حالة العمل الفعلي -->
@@ -106,32 +124,36 @@
                 <div>
                     <h2 class="text-xl font-bold text-slate-800">أنت في العمل الآن</h2>
                     <p id="worker-curr-proj" class="text-sm text-slate-500 mt-1 font-bold"></p>
-                    <p class="text-xs text-blue-600 font-bold mt-2 bg-blue-50 inline-block px-3 py-1.5 rounded-full border border-blue-100">
+                    <p class="text-xs text-blue-600 font-bold mt-3 bg-blue-50 inline-block px-4 py-2 rounded-full border border-blue-100 shadow-sm">
                         وقت الدخول: <span id="worker-time-in" dir="ltr"></span>
                     </p>
                 </div>
 
-                <div class="text-right border-t border-slate-100 pt-4 mt-4">
+                <div class="text-right border-t border-slate-100 pt-5 mt-5">
                     <label class="block text-sm font-bold text-slate-700 mb-2">كمية الإنتاج المنجزة (مطلوب لتقييم التكلفة):</label>
                     <div class="flex gap-2">
-                        <input type="number" id="worker-prod-qty" placeholder="مثال: 5" class="flex-1 p-3 border rounded-xl bg-slate-50 outline-none font-bold text-center">
-                        <span class="p-3 bg-slate-100 rounded-xl text-slate-500 font-bold border">وحدة</span>
+                        <input type="number" id="worker-prod-qty" placeholder="مثال: 5" min="0" class="flex-1 p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-center text-lg">
+                        <span class="p-3 bg-slate-100 rounded-xl text-slate-500 font-bold border border-slate-200 flex items-center">وحدة</span>
                     </div>
                 </div>
 
-                <button onclick="handleCheckOut()" id="btn-checkout" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-all shadow-md">
-                    <i class="ph-bold ph-stop-circle"></i> إنهاء العمل (انصراف)
+                <button onclick="handleCheckOut()" id="btn-checkout" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-all shadow-md mt-4">
+                    <i class="ph-bold ph-stop-circle text-xl"></i> إنهاء العمل (انصراف)
                 </button>
             </div>
         </main>
     </div>
 
-    <!-- شاشة الإدارة -->
+    <!-- ========================================== -->
+    <!-- 3. شاشة الإدارة (Admin View) -->
+    <!-- ========================================== -->
     <div id="view-admin" class="hide flex h-screen bg-slate-100 fade-in w-full">
         <!-- القائمة الجانبية -->
         <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 z-20 shadow-xl">
             <div class="p-6 bg-slate-950 flex items-center gap-3 border-b border-slate-800">
-                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-inner"><i class="ph-fill ph-hexagon text-white text-2xl"></i></div>
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-inner">
+                    <i class="ph-fill ph-hexagon text-white text-2xl"></i>
+                </div>
                 <div>
                     <h1 class="text-white font-bold text-lg leading-tight">نظام ERP</h1>
                     <p class="text-[10px] text-blue-400 font-medium">إدارة التكاليف الشاملة</p>
@@ -145,21 +167,42 @@
             </nav>
             <div class="p-4 border-t border-slate-800 bg-slate-950">
                 <div class="text-xs mb-3 text-slate-400 px-2 flex items-center gap-2"><i class="ph-fill ph-user-circle text-lg"></i> <span id="admin-user-info"></span></div>
-                <button onclick="appLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700 hover:border-rose-500"><i class="ph-bold ph-power"></i> تسجيل الخروج</button>
+                <button onclick="appLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700 hover:border-rose-500">
+                    <i class="ph-bold ph-power"></i> تسجيل الخروج
+                </button>
             </div>
         </aside>
 
         <!-- المحتوى الرئيسي للإدارة -->
         <main class="flex-1 overflow-y-auto relative bg-slate-50">
-            <header class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+            <header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
                 <h2 id="admin-header-title" class="text-xl font-bold text-slate-800">اللوحة المالية</h2>
-                <div class="text-sm font-bold text-slate-500 flex items-center gap-2"><i class="ph-duotone ph-calendar-blank text-blue-600"></i> <span id="admin-date"></span></div>
+                <div class="flex items-center gap-4">
+                    <button onclick="initAdminDashboard()" class="text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="ph-bold ph-arrows-clockwise"></i> تحديث البيانات
+                    </button>
+                    <div class="text-sm font-bold text-slate-500 flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm">
+                        <i class="ph-duotone ph-calendar-blank text-blue-600"></i> <span id="admin-date"></span>
+                    </div>
+                </div>
             </header>
 
             <div class="p-8 max-w-7xl mx-auto">
                 
-                <!-- تبويب اللوحة المالية -->
                 <div id="admin-tab-dashboard" class="admin-content space-y-6 fade-in">
+                    <!-- فلاتر ذكية -->
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <i class="ph-fill ph-funnel text-slate-400"></i>
+                            <span class="text-sm font-bold text-slate-600">فلتر المشاريع:</span>
+                        </div>
+                        <select id="admin-filter-project" onchange="renderAdminDashboard()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-lg px-4 py-2 outline-none focus:border-blue-500 min-w-[200px]">
+                            <option value="ALL">جميع المشاريع</option>
+                            <!-- يملأ بواسطة JS -->
+                        </select>
+                    </div>
+
+                    <!-- مؤشرات الأداء KPIs -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-colors relative overflow-hidden">
                             <i class="ph-duotone ph-money absolute left-[-10px] bottom-[-10px] text-6xl text-emerald-100"></i>
@@ -178,24 +221,24 @@
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-colors relative overflow-hidden">
                             <i class="ph-duotone ph-users absolute left-[-10px] bottom-[-10px] text-6xl text-indigo-100"></i>
-                            <p class="text-sm text-slate-500 font-bold relative z-10">عمال نشطين اليوم</p>
+                            <p class="text-sm text-slate-500 font-bold relative z-10">عمال نشطين (للمشروع المختار)</p>
                             <h3 class="text-3xl font-black text-indigo-600 mt-2 relative z-10"><span id="dash-workers">0</span> <span class="text-sm font-normal text-slate-400">عامل</span></h3>
                         </div>
                     </div>
 
+                    <!-- الرسم البياني -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
-                        <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="ph-duotone ph-chart-bar text-blue-500 text-xl"></i> تكلفة العمالة الموزعة على المشاريع (Job Costing)</h3>
+                        <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="ph-duotone ph-chart-bar text-blue-500 text-xl"></i> توزيع التكلفة على المشاريع (Job Costing)</h3>
                         <div class="w-full h-80 relative">
                             <canvas id="costChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- تبويب الإنتاجية والتكاليف -->
                 <div id="admin-tab-productivity" class="admin-content hide space-y-6 fade-in">
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-800">تقارير الإنتاجية والتكلفة لكل وحدة</h3>
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="ph-duotone ph-trend-up text-blue-600 text-xl"></i> تقارير الإنتاجية والتكلفة لكل وحدة</h3>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-right text-sm">
@@ -207,7 +250,7 @@
                                         <th class="p-4 font-bold">إجمالي الساعات</th>
                                         <th class="p-4 font-bold">تكلفة العمالة</th>
                                         <th class="p-4 font-bold">الكمية المنجزة</th>
-                                        <th class="p-4 font-bold">تكلفة الوحدة (Labor Cost/Unit)</th>
+                                        <th class="p-4 font-bold bg-slate-50">تكلفة الوحدة (Labor Cost/Unit)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-productivity" class="divide-y divide-slate-100"></tbody>
@@ -216,55 +259,7 @@
                     </div>
                 </div>
 
-                <!-- تبويب إدارة الكيانات -->
                 <div id="admin-tab-setup" class="admin-content hide space-y-6 fade-in">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-                            <div class="p-5 bg-blue-50 border-b border-blue-100"><h3 class="font-bold text-blue-800 flex items-center gap-2"><i class="ph-fill ph-users text-xl"></i> العمال والموظفين (تسعير التكلفة)</h3></div>
-                            <div class="p-0 overflow-y-auto flex-1">
-                                <ul id="list-users" class="divide-y divide-slate-100"></ul>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-                            <div class="p-5 bg-emerald-50 border-b border-emerald-100"><h3 class="font-bold text-emerald-800 flex items-center gap-2"><i class="ph-fill ph-buildings text-xl"></i> المشاريع (نطاقات البصمة)</h3></div>
-                            <div class="p-0 overflow-y-auto flex-1">
-                                <ul id="list-projects" class="divide-y divide-slate-100"></ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- تبويب سجل الحضور -->
-                <div id="admin-tab-attendance" class="admin-content hide space-y-6 fade-in">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-800">سجل الجلسات الشامل (Time Sessions)</h3>
-                            <button onclick="renderAttendance()" class="text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition-colors"><i class="ph-bold ph-arrows-clockwise"></i> تحديث</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-right text-sm">
-                                <thead class="bg-white text-slate-600 border-b">
-                                    <tr>
-                                        <th class="p-4 font-bold">العامل</th>
-                                        <th class="p-4 font-bold">المشروع / النشاط</th>
-                                        <th class="p-4 font-bold">الدخول</th>
-                                        <th class="p-4 font-bold">الخروج</th>
-                                        <th class="p-4 font-bold">الساعات (أساسي/OT)</th>
-                                        <th class="p-4 font-bold">التكلفة المحتسبة</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-attendance" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-    </div>
-
-    <script>
-        // ==========================================
-        // 1. DATA MODELS & CONSTANTS
-        // ==========================================
-        const ROLES = { ADMIN: 'Admin', PM: '
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
+                            <div class="p-5 b

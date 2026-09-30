@@ -3,692 +3,486 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>أركان الخليج - نظام إدارة المشاريع والتكاليف</title>
+    <title>أركان الخليج ERP</title>
     
-    <!-- Tailwind CSS للواجهة -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Phosphor Icons للأيقونات -->
+    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
-    <!-- Chart.js للرسوم البيانية -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- الخطوط -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; }
-        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .hidden { display: none !important; }
-        
-        /* تخصيص شريط التمرير */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body class="text-slate-800 h-screen overflow-hidden">
+<body class="text-slate-800 antialiased h-screen overflow-hidden flex flex-col">
 
-    <!-- 1. شاشة تسجيل الدخول -->
-    <div id="view-login" class="min-h-screen flex items-center justify-center bg-slate-100 p-4 fade-in">
-        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blue-900 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
-                    <i class="ph-fill ph-buildings text-blue-400 text-3xl"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-800">أركان الخليج (ERP)</h1>
-                <p class="text-sm text-slate-500 mt-1">نظام إدارة المشاريع وتكاليف العمالة</p>
-            </div>
-            
-            <form id="form-login" class="space-y-5">
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">رقم المستخدم (ID)</label>
-                    <input type="text" id="login-id" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-600 font-bold text-center" required placeholder="أدخل رقمك الوظيفي">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">كلمة المرور</label>
-                    <input type="password" id="login-pass" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-600 font-bold text-center" required placeholder="***">
-                </div>
-                <div id="login-error" class="hidden p-3 bg-red-50 text-red-700 rounded-lg text-sm font-bold flex items-center gap-2">
-                    <i class="ph-fill ph-warning-circle text-lg"></i> <span id="login-error-msg"></span>
-                </div>
-                <button type="submit" id="btn-login-submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
-                    تسجيل الدخول <i class="ph-bold ph-sign-in"></i>
-                </button>
-            </form>
-            
-            <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 text-center">
-                يتم التحقق من البيانات عبر خوادم Firebase السحابية بشكل آمن.
-            </div>
-        </div>
+    <!-- شاشة التحميل -->
+    <div id="loader" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white">
+        <i class="ph-duotone ph-circle-notch animate-spin text-6xl text-blue-500 mb-4"></i>
+        <h2 class="text-xl font-bold">جاري الاتصال بالسحابة...</h2>
     </div>
 
-    <!-- 2. بوابة العامل (Worker Dashboard) -->
-    <div id="view-worker" class="hidden min-h-screen bg-slate-50 flex-col fade-in">
-        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-200">
-            <div>
-                <h1 class="font-bold text-slate-800 text-lg">بوابة الإنتاج والحضور</h1>
-                <p id="worker-header-info" class="text-xs text-emerald-600 font-bold"></p>
-            </div>
-            <button onclick="Auth.logout()" class="w-10 h-10 bg-slate-100 hover:bg-red-50 rounded-full flex items-center justify-center text-slate-600 hover:text-red-600 transition-colors">
-                <i class="ph-bold ph-power text-xl"></i>
-            </button>
-        </header>
-
-        <main class="flex-1 p-4 max-w-md mx-auto w-full mt-4 space-y-6 overflow-y-auto pb-20">
-            <div id="worker-msg" class="hidden p-4 rounded-xl flex items-start gap-3 text-sm font-bold border"></div>
-
-            <!-- شاشة تسجيل الحضور -->
-            <div id="worker-state-checkin" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                <h2 class="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3"><i class="ph-fill ph-play-circle text-emerald-500 text-xl"></i> بدء جلسة عمل جديدة</h2>
-                
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">المشروع (تفعيل الـ GPS إلزامي)</label>
-                    <select id="worker-sel-project" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700"></select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">النشاط / نوع العمل</label>
-                    <select id="worker-sel-activity" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700"></select>
-                </div>
-
-                <button onclick="WorkerUI.checkIn()" id="btn-checkin" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 mt-6 shadow-md transition-all">
-                    <i class="ph-bold ph-map-pin"></i> تسجيل الحضور (فحص الموقع)
-                </button>
-                <button onclick="WorkerUI.checkIn(true)" class="w-full text-center text-xs text-slate-400 mt-2 underline">تجاوز الموقع (للمدير فقط)</button>
-            </div>
-
-            <!-- شاشة أثناء العمل (الإنتاج والانصراف) -->
-            <div id="worker-state-working" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-6">
-                <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-pulse">
-                    <i class="ph-duotone ph-clock text-4xl"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800">أنت في العمل الآن</h2>
-                    <p id="worker-curr-proj" class="text-sm text-slate-500 mt-1 font-bold"></p>
-                    <p class="text-xs text-blue-600 font-bold mt-3 bg-blue-50 inline-block px-4 py-2 rounded-full border border-blue-100">
-                        وقت الدخول: <span id="worker-time-in" dir="ltr"></span>
-                    </p>
-                </div>
-
-                <div class="text-right border-t border-slate-100 pt-5 mt-5">
-                    <label class="block text-sm font-bold text-slate-700 mb-2">الكمية المنجزة (مطلوب لتقييم الإنتاجية):</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="worker-prod-qty" placeholder="مثال: 5" min="0" class="flex-1 p-3 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-bold text-center text-lg">
-                        <span class="p-3 bg-slate-100 rounded-xl text-slate-500 font-bold border border-slate-200">وحدة</span>
-                    </div>
-                </div>
-
-                <button onclick="WorkerUI.checkOut()" id="btn-checkout" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 shadow-md transition-all">
-                    <i class="ph-bold ph-stop-circle text-xl"></i> إنهاء العمل (انصراف)
-                </button>
-            </div>
-        </main>
+    <!-- شريط الإشعارات -->
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 transition-all duration-300 -translate-y-20 opacity-0 z-[200]">
+        <i id="toast-icon" class="ph-fill ph-check-circle text-emerald-400 text-xl"></i>
+        <span id="toast-msg" class="font-medium text-sm">تم</span>
     </div>
 
-    <!-- 3. لوحة تحكم الإدارة المركزية (Admin Dashboard) -->
-    <div id="view-admin" class="hidden flex h-screen bg-slate-50 fade-in w-full">
-        <!-- القائمة الجانبية (Sidebar) -->
-        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 z-40 shadow-xl h-full">
-            <div class="p-6 bg-slate-950 flex justify-between items-center border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white"><i class="ph-fill ph-hexagon text-2xl"></i></div>
-                    <div><h1 class="text-white font-bold text-lg leading-tight">نظام ERP</h1><p class="text-[10px] text-blue-400 font-medium">إدارة شاملة للتكاليف</p></div>
-                </div>
-            </div>
-            
-            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-                <button onclick="AdminUI.switchTab('dashboard')" id="tab-btn-dashboard" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all bg-blue-600 text-white shadow-md"><i class="ph-duotone ph-chart-line-up text-xl"></i> اللوحة المالية</button>
-                <button onclick="AdminUI.switchTab('attendance')" id="tab-btn-attendance" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-clock text-xl"></i> سجل الجلسات</button>
-                <button onclick="AdminUI.switchTab('productivity')" id="tab-btn-productivity" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-trend-up text-xl"></i> تقارير الإنتاجية</button>
-                <button onclick="AdminUI.switchTab('setup')" id="tab-btn-setup" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-gear text-xl"></i> إدارة النظام</button>
-                <button onclick="AdminUI.switchTab('audit')" id="tab-btn-audit" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-list-magnifying-glass text-xl"></i> سجل التدقيق (Audit)</button>
-            </nav>
-            <div class="p-4 border-t border-slate-800 bg-slate-950">
-                <div class="text-xs mb-3 text-emerald-400 px-2 font-bold flex items-center gap-2"><i class="ph-fill ph-user-circle text-lg"></i> <span id="admin-user-info"></span></div>
-                <button onclick="Auth.logout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700 hover:border-rose-500">
-                    <i class="ph-bold ph-power"></i> تسجيل الخروج
-                </button>
-            </div>
-        </aside>
+    <!-- حاوية التطبيق -->
+    <div id="app-container" class="w-full h-full hidden"></div>
 
-        <!-- المحتوى الإداري الرئيسي -->
-        <main class="flex-1 overflow-y-auto relative w-full">
-            <header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
-                <h2 id="admin-header-title" class="text-xl font-bold text-slate-800">اللوحة المالية</h2>
-                <div class="flex items-center gap-4">
-                    <span id="sync-status" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1"><i class="ph-fill ph-cloud-check"></i> متصل بالسحابة</span>
-                </div>
-            </header>
-
-            <div class="p-8 max-w-7xl mx-auto pb-24">
-                
-                <!-- اللوحة المالية (Job Costing Dashboard) -->
-                <div id="admin-tab-dashboard" class="admin-content space-y-6 fade-in">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <i class="ph-fill ph-funnel text-slate-400 text-xl"></i>
-                        <span class="text-sm font-bold text-slate-600">تحليل تكاليف المشروع:</span>
-                        <select id="admin-filter-project" onchange="AdminUI.renderDashboard()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-lg px-4 py-2 outline-none focus:border-blue-500 min-w-[250px]">
-                            <option value="ALL">جميع المشاريع التابعة للشركة</option>
-                        </select>
-                    </div>
-
-                    <!-- KPIs -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
-                            <i class="ph-duotone ph-money absolute left-[-10px] bottom-[-10px] text-6xl text-emerald-50 group-hover:scale-110 transition-transform"></i>
-                            <p class="text-sm text-slate-500 font-bold relative z-10">إجمالي تكلفة العمالة</p>
-                            <h3 class="text-3xl font-black text-emerald-600 mt-2 relative z-10"><span id="dash-cost">0</span> <span class="text-sm text-slate-400">ر.س</span></h3>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
-                            <i class="ph-duotone ph-clock absolute left-[-10px] bottom-[-10px] text-6xl text-blue-50 group-hover:scale-110 transition-transform"></i>
-                            <p class="text-sm text-slate-500 font-bold relative z-10">إجمالي ساعات العمل</p>
-                            <h3 class="text-3xl font-black text-blue-600 mt-2 relative z-10"><span id="dash-hours">0</span> <span class="text-sm text-slate-400">ساعة</span></h3>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
-                            <i class="ph-duotone ph-timer absolute left-[-10px] bottom-[-10px] text-6xl text-rose-50 group-hover:scale-110 transition-transform"></i>
-                            <p class="text-sm text-slate-500 font-bold relative z-10">الساعات الإضافية (OT)</p>
-                            <h3 class="text-3xl font-black text-rose-600 mt-2 relative z-10"><span id="dash-ot">0</span> <span class="text-sm text-slate-400">ساعة</span></h3>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
-                            <i class="ph-duotone ph-users absolute left-[-10px] bottom-[-10px] text-6xl text-indigo-50 group-hover:scale-110 transition-transform"></i>
-                            <p class="text-sm text-slate-500 font-bold relative z-10">عمال نشطين (اليوم)</p>
-                            <h3 class="text-3xl font-black text-indigo-600 mt-2 relative z-10"><span id="dash-workers">0</span> <span class="text-sm text-slate-400">عامل</span></h3>
-                        </div>
-                    </div>
-
-                    <!-- الرسم البياني التفاعلي -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[400px]">
-                        <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="ph-duotone ph-chart-bar text-blue-500 text-xl"></i> توزيع التكلفة المباشرة للعمالة على المشاريع</h3>
-                        <div class="w-full flex-1 relative"><canvas id="costChart"></canvas></div>
-                    </div>
-                </div>
-
-                <!-- باقي التبويبات ستملأ آلياً بالـ JavaScript للحفاظ على ترتيب الكود -->
-                <div id="admin-tab-attendance" class="admin-content hidden space-y-6 fade-in">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-5 bg-slate-50 border-b border-slate-200"><h3 class="font-bold text-slate-800 text-lg">سجل الجلسات الشامل (Time Sessions)</h3></div>
-                        <div class="overflow-x-auto"><table class="w-full text-right text-sm"><thead class="bg-white text-slate-500 border-b"><tr><th class="p-4">العامل</th><th class="p-4">المشروع/النشاط</th><th class="p-4">الدخول والخروج</th><th class="p-4">التكلفة الإجمالية (مجمدة)</th><th class="p-4">الحالة</th></tr></thead><tbody id="tbody-attendance" class="divide-y divide-slate-100"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="admin-tab-productivity" class="admin-content hidden space-y-6 fade-in">
-                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-5 bg-slate-50 border-b border-slate-200"><h3 class="font-bold text-slate-800 text-lg">تحليل الإنتاجية وتكلفة الوحدة (Unit Cost)</h3></div>
-                        <div class="overflow-x-auto"><table class="w-full text-right text-sm"><thead class="bg-white text-slate-500 border-b"><tr><th class="p-4">العامل</th><th class="p-4">إجمالي الساعات</th><th class="p-4">تكلفة الجلسة</th><th class="p-4">الكمية المنجزة</th><th class="p-4 bg-slate-50">تكلفة الوحدة (ر.س/وحدة)</th></tr></thead><tbody id="tbody-productivity" class="divide-y divide-slate-100"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="admin-tab-setup" class="admin-content hidden space-y-6 fade-in">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
-                            <div class="p-5 border-b border-blue-100 bg-blue-50/50"><h3 class="font-bold text-blue-800 flex items-center gap-2"><i class="ph-fill ph-users text-xl"></i> إدارة العمال (Users)</h3></div>
-                            <ul id="list-users" class="divide-y divide-slate-100 overflow-y-auto flex-1 p-0"></ul>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
-                            <div class="p-5 border-b border-emerald-100 bg-emerald-50/50"><h3 class="font-bold text-emerald-800 flex items-center gap-2"><i class="ph-fill ph-buildings text-xl"></i> المشاريع ونطاقات الـ GPS</h3></div>
-                            <ul id="list-projects" class="divide-y divide-slate-100 overflow-y-auto flex-1 p-0"></ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="admin-tab-audit" class="admin-content hidden space-y-6 fade-in">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-5 bg-slate-50 border-b border-slate-200"><h3 class="font-bold text-slate-800 text-lg">سجل الرقابة والتدقيق (Audit Trail)</h3></div>
-                        <ul id="list-audit" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto p-0"></ul>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-    </div>
-
-    <!-- 4. منطق النظام والطبقات المعمارية (Architecture & Business Logic) -->
+    <!-- الكود البرمجي الرئيسي -->
     <script type="module">
-        //        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // 1. استيراد مكتبات Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // طبقة الإعدادات والاتصال (Database Configuration)
-        // ==========================================
-        // بيانات الاتصال بقاعدة بياناتك السحابية التي أرسلتها
-        const firebaseConfig = {
-            apiKey: "AIzaSyC-L23_5r9kQinJAwKxjbL1AKs7dNEa1FQ",
-            authDomain: "arkan-system-cdf54.firebaseapp.com",
-            projectId: "arkan-system-cdf54",
-            storageBucket: "arkan-system-cdf54.firebasestorage.app",
-            messagingSenderId: "1055893569120",
-            appId: "1:1055893569120:web:a26ed07661d827af2d8d05",
-            measurementId: "G-0ETG069F09"
+        // 2. إعدادات Firebase
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // إعدادات تجريبية تعمل على بيئة التطوير
+            projectId: "arkan-erp-demo" 
         };
-
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'arkan-erp-v1';
 
-        // ==========================================
-        // تعريف الثوابت (Constants & RBAC)
-        // ==========================================
-        const ROLES = { ADMIN: 'Admin', PM: 'Project Manager', WORKER: 'Worker' };
-        const STATUS = { ACTIVE: 'Active', INACTIVE: 'Inactive', WORKING: 'Working', COMPLETED: 'Completed' };
-        
+        // دالة تحديد مسار البيانات
+        const getPath = (col) => collection(db, 'artifacts', appId, 'public', 'data', col);
+
+        // 3. حالة التطبيق (State)
         let currentUser = null;
-        let localData = { users: [], projects: [], activities: [], attendance: [], audit: [] };
-        let activeWorkerSession = null;
-        let chartInstance = null;
+        let appData = { users: [], projects: [], attendance: [], requests: [] };
+        let activeAdminTab = 'dashboard';
+        let costChart = null;
 
-        //        const seedInitialData = async () => {
-            const usersRef = collection(db, 'users');
-            const snap = await getDocs(usersRef);
-            if(snap.empty) {
-                console.log("Seeding Initial Database...");
-                const defaultUsers = [
-                    { id: '1000', name: 'المدير العام', role: ROLES.ADMIN, password: '123', status: STATUS.ACTIVE, hourlyRate: 100 },
-                    { id: '2000', name: 'مدير المشاريع', role: ROLES.PM, password: '123', status: STATUS.ACTIVE, hourlyRate: 80 },
-                    { id: '1001', name: 'أحمد (عامل زجاج)', role: ROLES.WORKER, password: '123', status: STATUS.ACTIVE, hourlyRate: 20, overtimeRate: 30 },
-                    { id: '1002', name: 'محمود (عامل ألمنيوم)', role: ROLES.WORKER, password: '123', status: STATUS.ACTIVE, hourlyRate: 15, overtimeRate: 22.5 }
-                ];
-                const defaultProjects = [
-                    { id: 'P1', name: 'برج الرياض', lat: 24.7136, lng: 46.6753, radius: 1000, status: STATUS.ACTIVE },
-                    { id: 'P2', name: 'مجمع فلل جدة', lat: 21.4858, lng: 39.1925, radius: 2000, status: STATUS.ACTIVE }
-                ];
-                const defaultActivities = [
-                    { id: 'A1', name: 'تركيب نوافذ' }, { id: 'A2', name: 'واجهات زجاجية' }
-                ];
-
-                for (let u of defaultUsers) await addDoc(usersRef, u);
-                for (let p of defaultProjects) await addDoc(collection(db, 'projects'), p);
-                for (let a of defaultActivities) await addDoc(collection(db, 'activities'), a);
-                console.log("Database Seeded Successfully.");
-            }
+        // 4. دوال مساعدة
+        window.showToast = (msg, type = 'success') => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-icon').className = type === 'success' ? 'ph-fill ph-check-circle text-emerald-400 text-xl' : 'ph-fill ph-warning-circle text-rose-400 text-xl';
+            toast.classList.remove('-translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('-translate-y-20', 'opacity-0'), 3000);
         };
 
-        // ==========================================
-        // طبقة منطق الأعمال (Business Logic & Services)
-        // ==========================================
-        const BusinessLogic = {
-            // محرك التحقق الجغرافي (Geofencing)
-            checkDistance: (lat1, lon1, lat2, lon2) => {
-                const R = 6371e3; // بالامتار
-                const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
-                const deltaP = (lat2-lat1) * Math.PI/180, deltaLon = (lon2-lon1) * Math.PI/180;
-                const a = Math.sin(deltaP/2) * Math.sin(deltaP/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-                return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-            },
-            // محرك حساب التكاليف (Cost Engine)
-            calculateCosts: (checkInISO, checkOutISO, regRate, otRate) => {
-                const diffHours = (new Date(checkOutISO) - new Date(checkInISO)) / 3600000;
-                const regularHours = Math.min(diffHours, 8);
-                const overtimeHours = Math.max(0, diffHours - 8);
-                const totalCost = (regularHours * regRate) + (overtimeHours * otRate);
-                return { totalHours: diffHours, regularHours, overtimeHours, totalCost };
-            },
-            // سجل التدقيق المالي والإداري
-            logAudit: async (action, details) => {
-                if(!currentUser) return;
-                try {
-                    await addDoc(collection(db, 'audit'), {
-                        userId: currentUser.id, userName: currentUser.name,
-                        action, details, timestamp: new Date().toISOString()
-                    });
-                } catch(e) { console.error("Audit Error", e); }
-            }
-        };
+        const hideLoader = () => document.getElementById('loader').classList.add('hidden');
+        const showLoader = () => document.getElementById('loader').classList.remove('hidden');
 
-        // ==========================================
-        // طبقة المصادقة والتحكم بالوصول (Auth Layer)
-        // ==========================================
-        const Auth = {
-            login: async (id, password) => {
-                const btn = document.getElementById('btn-login-submit');
-                const errDiv = document.getElementById('login-error');
-                const errMsg = document.getElementById('login-error-msg');
-                btn.innerHTML = '<i class="ph-duotone ph-spinner animate-spin text-xl"></i> جاري الاتصال بالسحابة...';
+        // 5. التهيئة المبدئية (Seeding)
+        const seedDatabase = async () => {
+            if (appData.users.length === 0) {
+                console.log("Seeding default data...");
+                const admin = { id: '1000', name: 'المدير العام', role: 'Admin', password: '123', wage: 0, status: 'Active' };
+                const worker = { id: '1001', name: 'أحمد محمد', role: 'Worker', password: '123', wage: 150, status: 'Active' };
+                const project = { id: 'P-101', name: 'مشروع أبراج الرياض', lat: 24.7136, lng: 46.6753, radius: 1000, status: 'Active' };
                 
-                try {
-                    // البحث المباشر في قاعدة البيانات السحابية (لتجنب مشاكل الكاش)
-                    const snap = await getDocs(query(collection(db, 'users'), where('id', '==', id), where('password', '==', password)));
-                    
-                    if (snap.empty) {
-                        errMsg.innerText = "رقم المستخدم أو كلمة المرور غير صحيحة.";
-                        errDiv.classList.remove('hidden');
-                    } else {
-                        const userDoc = snap.docs[0];
-                        currentUser = { docId: userDoc.id, ...userDoc.data() };
-                        if(currentUser.status !== STATUS.ACTIVE) {
-                            errMsg.innerText = "هذا الحساب موقوف من قبل الإدارة.";
-                            errDiv.classList.remove('hidden');
-                        } else {
-                            errDiv.classList.add('hidden');
-                            localStorage.setItem('arkan_erp_session', JSON.stringify(currentUser));
-                            await BusinessLogic.logAudit('LOGIN', 'User logged into the system');
-                            AppRouter.routeUser();
-                        }
-                    }
-                } catch(e) {
-                    errMsg.innerText = "خطأ في الاتصال بالسحابة. تحقق من الإنترنت.";
-                    errDiv.classList.remove('hidden');
-                }
-                btn.innerHTML = 'تسجيل الدخول <i class="ph-bold ph-sign-in"></i>';
-            },
-            logout: async () => {
-                await BusinessLogic.logAudit('LOGOUT', 'User logged out');
-                currentUser = null;
-                localStorage.removeItem('arkan_erp_session');
-                AppRouter.showView('view-login');
-                document.getElementById('form-login').reset();
+                await setDoc(doc(getPath('users'), admin.id), admin);
+                await setDoc(doc(getPath('users'), worker.id), worker);
+                await setDoc(doc(getPath('projects'), project.id), project);
             }
         };
 
-        //        const AppRouter = {
-            init: async () => {
-                await seedInitialData();
-                // استعادة الجلسة
-                const saved = localStorage.getItem('arkan_erp_session');
-                if(saved) {
-                    currentUser = JSON.parse(saved);
-                    AppRouter.routeUser();
+        // 6. تشغيل النظام وجلب البيانات لحظياً
+        const startApp = async () => {
+            try {
+                // تسجيل دخول مخفي للاتصال بقاعدة البيانات
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    AppRouter.showView('view-login');
+                    await signInAnonymously(auth);
                 }
-                AppRouter.setupRealtimeSync();
-            },
-            showView: (id) => {
-                ['view-login', 'view-worker', 'view-admin'].forEach(v => document.getElementById(v).classList.add('hidden'));
-                document.getElementById(id).classList.remove('hidden');
-            },
-            routeUser: () => {
-                if(!currentUser) return AppRouter.showView('view-login');
-                if(currentUser.role === ROLES.WORKER) {
-                    WorkerUI.init();
-                    AppRouter.showView('view-worker');
-                } else {
-                    AdminUI.init();
-                    AppRouter.showView('view-admin');
-                }
-            },
-            setupRealtimeSync: () => {
-                // المزامنة الحية (Live Subscription) لجميع الجداول
-                const collections = ['users', 'projects', 'activities', 'attendance', 'audit'];
-                collections.forEach(colName => {
-                    onSnapshot(collection(db, colName), (snapshot) => {
-                        localData[colName] = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+
+                // الاستماع للتغييرات في قواعد البيانات لحظياً
+                const collections = ['users', 'projects', 'attendance', 'requests'];
+                collections.forEach(col => {
+                    onSnapshot(getPath(col), (snapshot) => {
+                        appData[col] = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
                         
-                        // تحديث الواجهة تلقائياً عند أي تغيير سحابي
-                        if(currentUser) {
-                            if(currentUser.role === ROLES.WORKER) WorkerUI.updateState();
-                            else AdminUI.renderAll();
-                        }
+                        if (col === 'users') seedDatabase(); // فحص التهيئة
+                        renderApp(); // تحديث الشاشة
                     });
                 });
+
+                // التحقق من وجود تسجيل دخول سابق في المتصفح
+                const savedSession = localStorage.getItem('arkan_session');
+                if (savedSession) currentUser = JSON.parse(savedSession);
+
+                hideLoader();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').innerHTML = `<div class="text-rose-500 font-bold p-4 bg-white rounded-xl">حدث خطأ في الاتصال بالسحابة. الرجاء المحاولة لاحقاً.</div>`;
             }
         };
 
-        // ==========================================
-        // واجهة العامل (Worker Dashboard Logic)
-        // ==========================================
-        const WorkerUI = {
-            init: () => {
-                document.getElementById('worker-header-info').innerText = `${currentUser.name} | أجر الساعة: ${currentUser.hourlyRate} ر.س`;
-                WorkerUI.updateState();
-            },
-            updateState: () => {
-                // تعبئة القوائم
-                const pSel = document.getElementById('worker-sel-project');
-                pSel.innerHTML = '<option value="">-- اختر المشروع --</option>' + localData.projects.filter(p=>p.status===STATUS.ACTIVE).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                const aSel = document.getElementById('worker-sel-activity');
-                aSel.innerHTML = '<option value="">-- اختر النشاط --</option>' + localData.activities.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        // --- واجهات المستخدم (UI Rendering) ---
 
-                // البحث عن جلسة عمل نشطة في السحابة
-                activeWorkerSession = localData.attendance.find(a => a.userId === currentUser.id && a.status === STATUS.WORKING);
+        const renderApp = () => {
+            const container = document.getElementById('app-container');
+            container.classList.remove('hidden');
 
-                const msgDiv = document.getElementById('worker-msg');
-                msgDiv.classList.add('hidden');
+            if (!currentUser) {
+                // شاشة الدخول
+                container.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+                        <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-slate-200 fade-in">
+                            <div class="text-center mb-8">
+                                <div class="w-16 h-16 bg-blue-900 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
+                                    <i class="ph-fill ph-buildings text-white text-3xl"></i>
+                                </div>
+                                <h1 class="text-2xl font-bold text-slate-800">أركان الخليج (ERP)</h1>
+                                <p class="text-sm text-slate-500 mt-1">نظام إدارة المشاريع وتكاليف العمالة</p>
+                            </div>
+                            <form onsubmit="window.handleLogin(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">رقم المستخدم (ID)</label>
+                                    <input type="number" id="login-id" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-600 font-bold" required placeholder="مثال: 1000 للإدارة">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">كلمة المرور</label>
+                                    <input type="password" id="login-pass" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-600 font-bold" required placeholder="مثال: 123">
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2">
+                                    دخول النظام <i class="ph-bold ph-arrow-left"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            } else if (currentUser.role === 'Worker') {
+                // شاشة العامل
+                const activeSession = appData.attendance.find(a => a.workerId === currentUser.id && a.status === 'Working');
+                const projectsOptions = appData.projects.filter(p => p.status === 'Active').map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
-                if(activeWorkerSession) {
-                    document.getElementById('worker-state-checkin').classList.add('hidden');
-                    document.getElementById('worker-state-working').classList.remove('hidden');
-                    const proj = localData.projects.find(p => p.id === activeWorkerSession.projectId);
-                    document.getElementById('worker-curr-proj').innerText = proj ? proj.name : 'غير محدد';
-                    document.getElementById('worker-time-in').innerText = new Date(activeWorkerSession.checkInTime).toLocaleTimeString('ar-SA');
-                } else {
-                    document.getElementById('worker-state-working').classList.add('hidden');
-                    document.getElementById('worker-state-checkin').classList.remove('hidden');
-                }
-            },
-            showMsg: (msg, type='error') => {
-                const div = document.getElementById('worker-msg');
-                div.className = `p-4 rounded-xl flex items-start gap-3 text-sm font-bold border mb-4 fade-in ${type==='error'?'bg-red-50 text-red-700 border-red-100':'bg-emerald-50 text-emerald-700 border-emerald-100'}`;
-                div.innerHTML = `<i class="ph-fill ${type==='error'?'ph-warning-circle':'ph-check-circle'} text-lg"></i> <span>${msg}</span>`;
-            },
-            checkIn: async (bypass = false) => {
-                const pId = document.getElementById('worker-sel-project').value;
-                const aId = document.getElementById('worker-sel-activity').value;
-                if(!pId || !aId) return WorkerUI.showMsg('يجب اختيار المشروع والنشاط أولاً.');
+                container.innerHTML = `
+                    <div class="min-h-screen bg-slate-50 flex flex-col">
+                        <header class="bg-white shadow-sm p-4 flex justify-between items-center border-b sticky top-0 z-10">
+                            <div>
+                                <h1 class="font-bold text-slate-800 text-lg">بوابة العمال</h1>
+                                <p class="text-xs text-slate-500 font-medium">${currentUser.name} | كود: ${currentUser.id}</p>
+                            </div>
+                            <button onclick="window.handleLogout()" class="p-2.5 bg-slate-100 rounded-full text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors"><i class="ph-bold ph-power text-xl"></i></button>
+                        </header>
+                        <main class="p-4 max-w-md mx-auto w-full mt-4 flex-1 fade-in">
+                            ${!activeSession ? `
+                                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
+                                    <h2 class="font-bold text-slate-800 flex items-center gap-2 border-b pb-3"><i class="ph-fill ph-play-circle text-emerald-500 text-xl"></i> بدء جلسة عمل</h2>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">المشروع الحالي (إلزامي)</label>
+                                        <select id="worker-proj" class="w-full p-3.5 border rounded-xl bg-slate-50 outline-none font-bold">
+                                            <option value="">-- اختر المشروع --</option>
+                                            ${projectsOptions}
+                                        </select>
+                                    </div>
+                                    <button onclick="window.workerCheckIn()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 shadow-md">
+                                        <i class="ph-bold ph-fingerprint text-xl"></i> تسجيل الحضور
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center space-y-6">
+                                    <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner"><i class="ph-duotone ph-briefcase text-4xl animate-pulse"></i></div>
+                                    <div>
+                                        <h2 class="text-xl font-bold text-slate-800">أنت في العمل الآن</h2>
+                                        <p class="text-sm text-slate-500 mt-1 font-bold">${activeSession.projectName}</p>
+                                        <p class="text-xs text-blue-600 font-bold mt-3 bg-blue-50 inline-block px-4 py-2 rounded-full border border-blue-100">
+                                            دخول: ${new Date(activeSession.checkIn).toLocaleTimeString('ar-SA')}
+                                        </p>
+                                    </div>
+                                    <button onclick="window.workerCheckOut('${activeSession.uid}')" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 shadow-md">
+                                        <i class="ph-bold ph-stop-circle text-xl"></i> إنهاء العمل (انصراف)
+                                    </button>
+                                </div>
+                            `}
+                        </main>
+                    </div>
+                `;
+            } else {
+                // شاشة الإدارة (Admin)
+                container.innerHTML = `
+                    <div class="flex h-screen bg-slate-50 w-full">
+                        <!-- Sidebar -->
+                        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col z-20 shrink-0">
+                            <div class="p-6 bg-slate-950 flex items-center gap-3 border-b border-slate-800">
+                                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white"><i class="ph-fill ph-hexagon text-2xl"></i></div>
+                                <div><h1 class="text-white font-bold">نظام الإدارة</h1><p class="text-[10px] text-blue-400">تزامن سحابي لحظي</p></div>
+                            </div>
+                            <nav class="flex-1 p-4 space-y-1">
+                                <button onclick="window.switchTab('dashboard')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeAdminTab==='dashboard'?'bg-blue-600 text-white':'hover:bg-slate-800'}"><i class="ph-duotone ph-chart-bar text-xl"></i> التكاليف والتقارير</button>
+                                <button onclick="window.switchTab('setup')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeAdminTab==='setup'?'bg-blue-600 text-white':'hover:bg-slate-800'}"><i class="ph-duotone ph-gear text-xl"></i> إعدادات النظام</button>
+                            </nav>
+                            <div class="p-4 bg-slate-950 border-t border-slate-800 text-center">
+                                <p class="text-xs text-slate-500 mb-2">${currentUser.name}</p>
+                                <button onclick="window.handleLogout()" class="w-full py-2 border border-rose-500/50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg text-sm font-bold transition-colors">خروج</button>
+                            </div>
+                        </aside>
+                        
+                        <!-- Main Content -->
+                        <main class="flex-1 overflow-y-auto p-8 relative">
+                            ${activeAdminTab === 'dashboard' ? renderAdminDashboard() : renderAdminSetup()}
+                        </main>
+                    </div>
+                `;
 
-                const proj = localData.projects.find(p => p.id === pId);
-                const btn = document.getElementById('btn-checkin');
-                btn.innerHTML = '<i class="ph-duotone ph-spinner animate-spin"></i> جاري التحقق...';
-                btn.disabled = true;
-
-                const execute = async (lat, lng, acc) => {
-                    try {
-                        const newSession = {
-                            userId: currentUser.id, workerName: currentUser.name,
-                            projectId: pId, activityId: aId,
-                            checkInTime: new Date().toISOString(), checkOutTime: null,
-                            // تجميد الأجر (Snapshot) لضمان صحة التكلفة التاريخية
-                            snapshotHourlyRate: currentUser.hourlyRate || 0,
-                            snapshotOvertimeRate: currentUser.overtimeRate || 0,
-                            lat, lng, gpsAccuracy: acc, status: STATUS.WORKING
-                        };
-                        await addDoc(collection(db, 'attendance'), newSession);
-                        await BusinessLogic.logAudit('CHECK_IN', `Checked in to project ${pId}`);
-                        WorkerUI.showMsg('تم تسجيل الحضور بنجاح', 'success');
-                    } catch(e) { WorkerUI.showMsg('خطأ في الاتصال بقاعدة البيانات'); }
-                    btn.innerHTML = '<i class="ph-bold ph-map-pin"></i> تسجيل الحضور (فحص الموقع)';
-                    btn.disabled = false;
-                };
-
-                if(bypass) { await execute(proj.lat, proj.lng, 10); return; }
-
-                if(!navigator.geolocation) { WorkerUI.showMsg('جهازك لا يدعم الـ GPS'); btn.disabled = false; return; }
-
-                navigator.geolocation.getCurrentPosition(
-                    async (pos) => {
-                        const dist = BusinessLogic.checkDistance(pos.coords.latitude, pos.coords.longitude, proj.lat, proj.lng);
-                        if(dist > proj.radius) WorkerUI.showMsg(`أنت خارج نطاق المشروع بمسافة ${Math.round(dist)} متر.`);
-                        else await execute(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-                        btn.innerHTML = '<i class="ph-bold ph-map-pin"></i> تسجيل الحضور (فحص الموقع)';
-                        btn.disabled = false;
-                    },
-                    (err) => { WorkerUI.showMsg('يرجى تفعيل صلاحية الموقع (GPS)'); btn.disabled = false; },
-                    { enableHighAccuracy: true }
-                );
-            },
-            checkOut: async () => {
-                if(!activeWorkerSession) return;
-                const btn = document.getElementById('btn-checkout');
-                btn.innerHTML = '<i class="ph-duotone ph-spinner animate-spin"></i> جاري الإنهاء...';
-                
-                try {
-                    const outTime = new Date().toISOString();
-                    // حساب التكاليف بناءً على الساعات الفعلية والأجر المجمد
-                    const costs = BusinessLogic.calculateCosts(activeWorkerSession.checkInTime, outTime, activeWorkerSession.snapshotHourlyRate, activeWorkerSession.snapshotOvertimeRate);
-                    const qty = Number(document.getElementById('worker-prod-qty').value) || 0;
-
-                    const docRef = doc(db, 'attendance', activeWorkerSession.docId);
-                    await updateDoc(docRef, {
-                        checkOutTime: outTime,
-                        ...costs,
-                        productionQty: qty,
-                        costPerUnit: qty > 0 ? (costs.totalCost / qty) : 0,
-                        status: STATUS.COMPLETED
-                    });
-                    await BusinessLogic.logAudit('CHECK_OUT', `Checked out. Total Cost: ${costs.totalCost}`);
-                    WorkerUI.showMsg('تم إنهاء العمل وحساب التكلفة بنجاح.', 'success');
-                } catch(e) { WorkerUI.showMsg('خطأ أثناء تسجيل الانصراف'); }
-                
-                btn.innerHTML = '<i class="ph-bold ph-stop-circle text-xl"></i> إنهاء العمل (انصراف)';
+                // تفعيل الرسم البياني إذا كنا في لوحة القيادة
+                if (activeAdminTab === 'dashboard') initChart();
             }
         };
 
-        //        const AdminUI = {
-            activeTab: 'dashboard',
-            init: () => {
-                document.getElementById('admin-user-info').innerText = `${currentUser.name} (${currentUser.role})`;
-                AdminUI.renderAll();
-            },
-            switchTab: (tabId) => {
-                AdminUI.activeTab = tabId;
-                const titles = { 'dashboard':'اللوحة المالية والتكاليف', 'attendance':'سجل الجلسات (Time Sessions)', 'productivity':'تقارير الإنتاج وتكلفة الوحدة', 'setup':'إدارة الكيانات (Setup)', 'audit':'سجل التدقيق (Audit Trail)' };
-                document.getElementById('admin-header-title').innerText = titles[tabId];
-                
-                document.querySelectorAll('.admin-content').forEach(el => el.classList.add('hidden'));
-                document.getElementById(`admin-tab-${tabId}`).classList.remove('hidden');
-                
-                document.querySelectorAll('.admin-tab').forEach(el => el.className = 'admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white text-slate-300');
-                document.getElementById(`tab-btn-${tabId}`).className = 'admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all bg-blue-600 text-white shadow-md';
-                
-                AdminUI.renderAll();
-            },
-            renderAll: () => {
-                if(AdminUI.activeTab === 'dashboard') AdminUI.renderDashboard();
-                if(AdminUI.activeTab === 'attendance') AdminUI.renderAttendance();
-                if(AdminUI.activeTab === 'productivity') AdminUI.renderProductivity();
-                if(AdminUI.activeTab === 'setup') AdminUI.renderSetup();
-                if(AdminUI.activeTab === 'audit') AdminUI.renderAudit();
-            },
-            renderDashboard: () => {
-                // فلتر المشاريع
-                const filterSel = document.getElementById('admin-filter-project');
-                const currVal = filterSel.value;
-                filterSel.innerHTML = '<option value="ALL">جميع المشاريع التابعة للشركة</option>' + localData.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                filterSel.value = currVal || 'ALL';
-                
-                const selectedProj = filterSel.value;
-                let filteredAtt = localData.attendance.filter(a => a.status === STATUS.COMPLETED);
-                if(selectedProj !== 'ALL') filteredAtt = filteredAtt.filter(a => a.projectId === selectedProj);
+        const renderAdminDashboard = () => {
+            const completed = appData.attendance.filter(a => a.status === 'Completed');
+            let totalCost = 0; let totalHours = 0;
+            
+            completed.forEach(a => {
+                totalCost += a.totalCost || 0;
+                totalHours += a.hours || 0;
+            });
 
-                let totalCost = 0, totalHours = 0, totalOT = 0;
-                let projectCosts = {};
-                
-                filteredAtt.forEach(a => {
-                    totalCost += (a.totalCost || 0);
-                    totalHours += (a.totalHours || 0);
-                    totalOT += (a.overtimeHours || 0);
+            return `
+                <div class="space-y-6 fade-in max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-slate-800 border-b pb-4">التقارير المالية وتكلفة العمالة</h2>
                     
-                    if(!projectCosts[a.projectId]) projectCosts[a.projectId] = 0;
-                    projectCosts[a.projectId] += (a.totalCost || 0);
-                });
-
-                const today = new Date().toISOString().split('T')[0];
-                const activeWorkersToday = new Set(localData.attendance.filter(a => a.checkInTime.startsWith(today)).map(a => a.userId)).size;
-
-                document.getElementById('dash-cost').innerText = totalCost.toLocaleString(undefined, {minimumFractionDigits:2});
-                document.getElementById('dash-hours').innerText = totalHours.toFixed(1);
-                document.getElementById('dash-ot').innerText = totalOT.toFixed(1);
-                document.getElementById('dash-workers').innerText = activeWorkersToday;
-
-                // رسم المخطط البياني
-                const labels = []; const data = []; const colors = [];
-                localData.projects.forEach(p => {
-                    if(selectedProj === 'ALL' || selectedProj === p.id) {
-                        labels.push(p.name);
-                        const cost = projectCosts[p.id] || 0;
-                        data.push(cost);
-                        colors.push(cost > 5000 ? '#10b981' : '#3b82f6');
-                    }
-                });
-
-                if(chartInstance) chartInstance.destroy();
-                const ctx = document.getElementById('costChart').getContext('2d');
-                Chart.defaults.font.family = 'Tajawal';
-                chartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: { labels, datasets: [{ label: 'تكلفة العمالة (ر.س)', data, backgroundColor: colors, borderRadius: 6, maxBarThickness: 60 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
-                });
-            },
-            renderAttendance: () => {
-                const tbody = document.getElementById('tbody-attendance');
-                const sorted = [...localData.attendance].sort((a,b) => new Date(b.checkInTime) - new Date(a.checkInTime));
-                tbody.innerHTML = sorted.map(a => {
-                    const p = localData.projects.find(x => x.id === a.projectId);
-                    const isComp = a.status === STATUS.COMPLETED;
-                    return `
-                        <tr class="hover:bg-slate-50 border-b border-slate-50 transition-colors">
-                            <td class="p-4"><p class="font-bold text-slate-800">${a.workerName}</p><p class="text-xs text-slate-400 font-mono">ID: ${a.userId}</p></td>
-                            <td class="p-4 font-bold text-slate-700">${p?.name || '-'}</td>
-                            <td class="p-4 font-mono text-xs text-slate-600" dir="ltr">${new Date(a.checkInTime).toLocaleString('en-GB')}<br/>${isComp ? new Date(a.checkOutTime).toLocaleString('en-GB') : '--'}</td>
-                            <td class="p-4 font-black text-emerald-600">${isComp ? `${a.totalCost.toFixed(2)} ر.س` : '-'}</td>
-                            <td class="p-4">${isComp ? '<span class="bg-slate-100 text-slate-500 px-3 py-1 rounded font-bold text-xs border">مكتمل</span>' : '<span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded font-bold text-xs border animate-pulse">بالعمل</span>'}</td>
-                        </tr>
-                    `;
-                }).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">لا يوجد سجلات حضور.</td></tr>';
-            },
-            renderProductivity: () => {
-                const tbody = document.getElementById('tbody-productivity');
-                const sorted = localData.attendance.filter(a => a.status === STATUS.COMPLETED && a.productionQty > 0).sort((a,b) => new Date(b.checkOutTime) - new Date(a.checkOutTime));
-                tbody.innerHTML = sorted.map(a => `
-                    <tr class="hover:bg-slate-50 border-b border-slate-50">
-                        <td class="p-4 font-bold text-slate-800">${a.workerName}<br><span class="text-xs text-slate-400 font-normal">${new Date(a.checkInTime).toLocaleDateString('en-GB')}</span></td>
-                        <td class="p-4 font-bold text-slate-700">${a.totalHours.toFixed(1)} س</td>
-                        <td class="p-4 font-bold text-emerald-600">${a.totalCost.toFixed(2)} ر.س</td>
-                        <td class="p-4 font-black text-indigo-600 text-lg">${a.productionQty} <span class="text-sm font-normal text-slate-500">وحدة</span></td>
-                        <td class="p-4 font-black text-rose-600 bg-rose-50/50">${a.costPerUnit.toFixed(2)} <span class="text-xs font-normal text-slate-500">ر.س/وحدة</span></td>
-                    </tr>
-                `).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">لم يتم تسجيل كميات إنتاج بعد.</td></tr>';
-            },
-            renderSetup: () => {
-                document.getElementById('list-users').innerHTML = localData.users.map(u => `
-                    <li class="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
-                        <div>
-                            <p class="font-bold text-slate-800">${u.name} <span class="text-[10px] bg-slate-200 px-1.5 rounded">${u.role}</span></p>
-                            <p class="text-xs text-slate-500 font-mono mt-1">ID: ${u.id} | أجر الساعة: ${u.hourlyRate || 0} ر.س</p>
+                    <!-- KPIs -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-sm text-slate-500 font-bold">إجمالي تكلفة العمالة</p>
+                            <h3 class="text-3xl font-black text-emerald-600 mt-2">${totalCost.toLocaleString(undefined, {minimumFractionDigits:2})} <span class="text-sm font-normal">ر.س</span></h3>
                         </div>
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-xs font-bold">${u.status}</span>
-                    </li>
-                `).join('');
-                document.getElementById('list-projects').innerHTML = localData.projects.map(p => `
-                    <li class="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
-                        <div>
-                            <p class="font-bold text-slate-800">${p.name}</p>
-                            <p class="text-xs text-slate-500 font-mono mt-1">Lat: ${p.lat} | Lng: ${p.lng}</p>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-sm text-slate-500 font-bold">إجمالي ساعات العمل</p>
+                            <h3 class="text-3xl font-black text-blue-600 mt-2">${totalHours.toFixed(1)} <span class="text-sm font-normal">ساعة</span></h3>
                         </div>
-                        <span class="px-3 py-1 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-xs font-bold">نطاق: ${p.radius}م</span>
-                    </li>
-                `).join('');
-            },
-            renderAudit: () => {
-                const sorted = [...localData.audit].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-                document.getElementById('list-audit').innerHTML = sorted.map(log => `
-                    <li class="p-4 hover:bg-slate-50 transition-colors">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="font-bold text-slate-800 text-sm">${log.action}</span>
-                            <span class="font-mono text-[10px] text-slate-400">${new Date(log.timestamp).toLocaleString('en-GB')}</span>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p class="text-sm text-slate-500 font-bold">جلسات العمل المكتملة</p>
+                            <h3 class="text-3xl font-black text-indigo-600 mt-2">${completed.length}</h3>
                         </div>
-                        <p class="text-sm text-slate-600 mb-1">${log.details}</p>
-                        <div class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded w-max">User: ${log.userName}</div>
-                    </li>
-                `).join('');
-            }
+                    </div>
+
+                    <!-- Chart & Table -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 h-80 flex flex-col">
+                            <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2"><i class="ph-duotone ph-chart-bar text-blue-500 text-lg"></i> التكلفة الموزعة على المشاريع</h3>
+                            <div class="flex-1 relative w-full h-full"><canvas id="costChart"></canvas></div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-80">
+                            <div class="p-4 border-b bg-slate-50"><h3 class="font-bold text-slate-700">سجل الحضور الحي</h3></div>
+                            <div class="flex-1 overflow-y-auto p-0">
+                                <ul class="divide-y divide-slate-100 text-sm">
+                                    ${appData.attendance.sort((a,b)=> new Date(b.checkIn)-new Date(a.checkIn)).map(a => `
+                                        <li class="p-4 hover:bg-slate-50">
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="font-bold text-slate-800">${a.workerName}</span>
+                                                ${a.status === 'Working' ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold animate-pulse">يعمل الآن</span>' : `<span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">${a.totalCost.toFixed(1)} ر.س</span>`}
+                                            </div>
+                                            <div class="text-xs text-slate-500">${a.projectName}</div>
+                                        </li>
+                                    `).join('')}
+                                    ${appData.attendance.length === 0 ? '<li class="p-4 text-center text-slate-400">لا يوجد حركات مسجلة</li>' : ''}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         };
 
-        // ربط الأحداث وتشغيل النظام
-        document.getElementById('form-login').addEventListener('submit', (e) => {
+        const renderAdminSetup = () => `
+            <div class="space-y-6 fade-in max-w-6xl mx-auto">
+                <h2 class="text-2xl font-bold text-slate-800 border-b pb-4">إعدادات النظام والكيانات</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- إضافة عمال -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                        <div class="p-4 border-b bg-blue-50"><h3 class="font-bold text-blue-800">إدارة العمال (Workers)</h3></div>
+                        <form onsubmit="window.adminAddWorker(event)" class="p-4 border-b bg-slate-50 grid grid-cols-2 gap-2">
+                            <input type="number" id="w-id" required placeholder="كود العامل (ID)" class="p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <input type="text" id="w-name" required placeholder="اسم العامل" class="p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <input type="password" id="w-pass" required placeholder="كلمة المرور" class="p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <input type="number" id="w-wage" required placeholder="الأجر اليومي" class="p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <button type="submit" class="col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors">إضافة للعاملين</button>
+                        </form>
+                        <ul class="flex-1 overflow-y-auto p-0 divide-y divide-slate-100 text-sm">
+                            ${appData.users.filter(u=>u.role==='Worker').map(u => `
+                                <li class="p-4 flex justify-between items-center hover:bg-slate-50">
+                                    <div><p class="font-bold">${u.name}</p><p class="text-xs text-slate-500">كود: ${u.id} | الأجر: ${u.wage} ر.س</p></div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                    <!-- إضافة مشاريع -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                        <div class="p-4 border-b bg-indigo-50"><h3 class="font-bold text-indigo-800">إدارة المشاريع (Projects)</h3></div>
+                        <form onsubmit="window.adminAddProject(event)" class="p-4 border-b bg-slate-50 grid grid-cols-2 gap-2">
+                            <input type="text" id="p-id" required placeholder="كود المشروع (مثال: P-01)" class="col-span-2 p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <input type="text" id="p-name" required placeholder="اسم المشروع" class="col-span-2 p-2.5 rounded-lg border outline-none font-bold text-sm">
+                            <button type="submit" class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors mt-2">إضافة مشروع جديد</button>
+                        </form>
+                        <ul class="flex-1 overflow-y-auto p-0 divide-y divide-slate-100 text-sm">
+                            ${appData.projects.map(p => `
+                                <li class="p-4 hover:bg-slate-50">
+                                    <p class="font-bold">${p.name}</p><p class="text-xs text-slate-500">كود: ${p.id}</p>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        const initChart = () => {
+            const ctx = document.getElementById('costChart');
+            if (!ctx) return;
+
+            const projCosts = {};
+            appData.attendance.filter(a => a.status === 'Completed').forEach(a => {
+                if(!projCosts[a.projectName]) projCosts[a.projectName] = 0;
+                projCosts[a.projectName] += a.totalCost || 0;
+            });
+
+            if (costChart) costChart.destroy();
+            costChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(projCosts),
+                    datasets: [{ label: 'التكلفة بالريال', data: Object.values(projCosts), backgroundColor: '#3b82f6', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        };
+
+        // --- الأحداث والدوال العامة (Actions) ---
+
+        window.handleLogin = async (e) => {
             e.preventDefault();
-            Auth.login(document.getElementById('login-id').value, document.getElementById('login-pass').value);
-        });
+            const id = document.getElementById('login-id').value;
+            const pass = document.getElementById('login-pass').value;
+            
+            showLoader();
+            const user = appData.users.find(u => u.id === id && u.password === pass);
+            
+            if (user) {
+                if(user.status !== 'Active') {
+                    showToast('حسابك موقوف', 'error');
+                } else {
+                    currentUser = user;
+                    localStorage.setItem('arkan_session', JSON.stringify(user));
+                    window.showToast('تم تسجيل الدخول بنجاح');
+                    renderApp();
+                }
+            } else {
+                window.showToast('بيانات الدخول غير صحيحة', 'error');
+            }
+            hideLoader();
+        };
 
-        // جعل الدوال متاحة للـ HTML (لأن type="module" يعزل الدوال محلياً)
-        window.Auth = Auth;
-        window.WorkerUI = WorkerUI;
-        window.AdminUI = AdminUI;
+        window.handleLogout = () => {
+            currentUser = null;
+            localStorage.removeItem('arkan_session');
+            renderApp();
+        };
 
-        // بدء النظام فور تحميل الصفحة
-        AppRouter.init();
+        window.switchTab = (tab) => {
+            activeAdminTab = tab;
+            renderApp();
+        };
+
+        // أحداث العامل
+        window.workerCheckIn = async () => {
+            const projId = document.getElementById('worker-proj').value;
+            if(!projId) return window.showToast('اختر المشروع أولاً', 'error');
+            
+            showLoader();
+            const project = appData.projects.find(p => p.id === projId);
+            
+            try {
+                await addDoc(getPath('attendance'), {
+                    workerId: currentUser.id,
+                    workerName: currentUser.name,
+                    projectId: project.id,
+                    projectName: project.name,
+                    checkIn: new Date().toISOString(),
+                    checkOut: null,
+                    wageAtTime: currentUser.wage || 0, // تجميد الراتب لحفظ التكلفة التاريخية
+                    status: 'Working'
+                });
+                window.showToast('تم تسجيل الحضور وفتح جلسة العمل');
+            } catch(e) { window.showToast('خطأ في الاتصال', 'error'); }
+            hideLoader();
+        };
+
+        window.workerCheckOut = async (uid) => {
+            showLoader();
+            try {
+                const session = appData.attendance.find(a => a.uid === uid);
+                const outTime = new Date();
+                const inTime = new Date(session.checkIn);
+                
+                // حساب الساعات (بشكل مبسط للتجربة: نحسب الثواني كأنها ساعات ليظهر فرق في التكلفة سريعاً)
+                const hours = (outTime - inTime) / (1000 * 60 * 60); 
+                const totalCost = hours * (session.wageAtTime / 8); // بافتراض الأجر لـ 8 ساعات
+
+                await updateDoc(doc(getPath('attendance'), uid), {
+                    checkOut: outTime.toISOString(),
+                    hours: hours,
+                    totalCost: totalCost,
+                    status: 'Completed'
+                });
+                window.showToast('تم إنهاء العمل وحساب التكلفة للإدارة');
+            } catch(e) { window.showToast('خطأ في الاتصال', 'error'); }
+            hideLoader();
+        };
+
+        // أحداث الإدارة
+        window.adminAddWorker = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('w-id').value;
+            if(appData.users.find(u => u.id === id)) return window.showToast('الكود مستخدم', 'error');
+            
+            showLoader();
+            try {
+                await setDoc(doc(getPath('users'), id), {
+                    id,
+                    name: document.getElementById('w-name').value,
+                    password: document.getElementById('w-pass').value,
+                    wage: Number(document.getElementById('w-wage').value),
+                    role: 'Worker',
+                    status: 'Active'
+                });
+                window.showToast('تمت إضافة العامل بنجاح');
+            } catch(e) { window.showToast('خطأ', 'error'); }
+            hideLoader();
+        };
+
+        window.adminAddProject = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('p-id').value.toUpperCase();
+            if(appData.projects.find(p => p.id === id)) return window.showToast('الكود مستخدم', 'error');
+            
+            showLoader();
+            try {
+                await setDoc(doc(getPath('projects'), id), {
+                    id,
+                    name: document.getElementById('p-name').value,
+                    status: 'Active'
+                });
+                window.showToast('تم إضافة المشروع بنجاح');
+            } catch(e) { window.showToast('خطأ', 'error'); }
+            hideLoader();
+        };
+
+        // بدء تشغيل النظام
+        window.addEventListener('DOMContentLoaded', startApp);
 
     </script>
 </body>

@@ -1,475 +1,270 @@
-```react
-import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
-import { 
-  Users, MapPin, LayoutDashboard, Clock, Calculator, ShieldAlert, 
-  CheckCircle, LogOut, ChevronRight, Activity, TrendingUp, Settings,
-  FileText, Home, Briefcase, Plus, AlertTriangle, Play, Square, Save
-} from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أركان الخليج (ERP)</title>
 
-// ==========================================
-// 1. ARCHITECTURE: DATA MODELS & CONSTANTS
-// ==========================================
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
-const ROLES = {
-  ADMIN: 'Admin',
-  HR: 'HR',
-  PM: 'Project Manager',
-  SUPERVISOR: 'Supervisor',
-  ACCOUNTANT: 'Accountant',
-  WORKER: 'Worker'
-};
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hide { display: none !important; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased h-screen overflow-hidden">
 
-const STATUS = {
-  ACTIVE: 'Active',
-  INACTIVE: 'Inactive',
-  COMPLETED: 'Completed'
-};
-
-// ==========================================
-// 2. ARCHITECTURE: SIMULATED BACKEND & API (Mocking real DB)
-// ==========================================
-
-// Initial Seed Data for the ERP
-const initialData = {
-  users: [
-    { id: '1000', empNo: 'EMP-001', name: 'المدير العام', role: ROLES.ADMIN, password: '123', status: STATUS.ACTIVE },
-    { id: '2000', empNo: 'EMP-002', name: 'أحمد (مدير مشروع)', role: ROLES.PM, password: '123', status: STATUS.ACTIVE },
-    { id: '1001', empNo: 'WRK-001', name: 'محمود (عامل زجاج)', role: ROLES.WORKER, hourlyRate: 20, overtimeRate: 30, password: '123', status: STATUS.ACTIVE },
-    { id: '1002', empNo: 'WRK-002', name: 'سيد (عامل ألمنيوم)', role: ROLES.WORKER, hourlyRate: 15, overtimeRate: 22.5, password: '123', status: STATUS.ACTIVE },
-  ],
-  projects: [
-    { id: 'P1', name: 'برج الرياض', lat: 24.7136, lng: 46.6753, radius: 1000, pmId: '2000', status: STATUS.ACTIVE },
-    { id: 'P2', name: 'مجمع فلل جدة', lat: 21.4858, lng: 39.1925, radius: 2000, pmId: '2000', status: STATUS.ACTIVE }
-  ],
-  villas: [
-    { id: 'V1', projectId: 'P2', name: 'فيلا 101' },
-    { id: 'V2', projectId: 'P2', name: 'فيلا 102' }
-  ],
-  activities: [
-    { id: 'A1', name: 'تركيب نوافذ (Windows)' },
-    { id: 'A2', name: 'واجهات زجاجية (Curtain Wall)' }
-  ],
-  attendance: [], // Time Sessions
-  auditLog: []
-};
-
-// Database Engine
-class DB {
-  static get(table) {
-    const data = localStorage.getItem(`arkan_erp_${table}`);
-    return data ? JSON.parse(data) : (initialData[table] || []);
-  }
-  static set(table, data) {
-    localStorage.setItem(`arkan_erp_${table}`, JSON.stringify(data));
-  }
-  static init() {
-    if (!localStorage.getItem('arkan_erp_users')) {
-      Object.keys(initialData).forEach(key => DB.set(key, initialData[key]));
-    }
-  }
-}
-
-// Simulated API Layer (Asynchronous)
-const api = {
-  auth: {
-    login: async (id, password) => {
-      const users = DB.get('users');
-      const user = users.find(u => u.id === id && u.password === password && u.status === STATUS.ACTIVE);
-      if (!user) throw new Error('بيانات الدخول غير صحيحة أو الحساب موقوف');
-      return user;
-    }
-  },
-  audit: {
-    log: async (userId, action, details) => {
-      const logs = DB.get('auditLog');
-      logs.push({ id: Date.now().toString(), userId, action, details, timestamp: new Date().toISOString() });
-      DB.set('auditLog', logs);
-    }
-  },
-  attendance: {
-    checkIn: async (userId, data) => {
-      // 1. Get User current rates to save historical cost snapshot
-      const user = DB.get('users').find(u => u.id === userId);
-      
-      const newSession = {
-        id: Date.now().toString(),
-        userId,
-        projectId: data.projectId,
-        villaId: data.villaId,
-        activityId: data.activityId,
-        checkInTime: new Date().toISOString(),
-        checkOutTime: null,
-        // Snapshot Rates (Crucial for Historical Cost)
-        snapshotHourlyRate: user.hourlyRate || 0,
-        snapshotOvertimeRate: user.overtimeRate || 0,
-        // GPS Data
-        lat: data.lat,
-        lng: data.lng,
-        accuracy: data.accuracy,
-        status: 'working'
-      };
-      
-      const att = DB.get('attendance');
-      att.push(newSession);
-      DB.set('attendance', att);
-      await api.audit.log(userId, 'Check-In', `Checked in to Project ${data.projectId}`);
-      return newSession;
-    },
-    checkOut: async (sessionId, data) => {
-      const att = DB.get('attendance');
-      const session = att.find(s => s.id === sessionId);
-      if(!session) throw new Error('Session not found');
-
-      const checkOutTime = new Date().toISOString();
-      const hours = BusinessLogic.calculateHours(session.checkInTime, checkOutTime);
-      const costs = BusinessLogic.calculateLaborCost(hours.regular, hours.overtime, session.snapshotHourlyRate, session.snapshotOvertimeRate);
-
-      session.checkOutTime = checkOutTime;
-      session.regularHours = hours.regular;
-      session.overtimeHours = hours.overtime;
-      session.totalCost = costs.totalCost;
-      session.productionQty = data.productionQty || 0;
-      session.productionUnit = data.productionUnit || 'Unit';
-      session.costPerUnit = data.productionQty > 0 ? (costs.totalCost / data.productionQty) : 0;
-      session.status = 'completed';
-
-      DB.set('attendance', att);
-      await api.audit.log(session.userId, 'Check-Out', `Checked out with ${hours.total.toFixed(2)} hours`);
-      return session;
-    }
-  },
-  data: {
-    getDashboardStats: async () => {
-      const att = DB.get('attendance');
-      const projects = DB.get('projects');
-      const users = DB.get('users');
-      
-      const today = new Date().toISOString().split('T')[0];
-      const todayAtt = att.filter(a => a.checkInTime.startsWith(today));
-      
-      let totalCost = 0;
-      let totalRegHours = 0;
-      let totalOTHours = 0;
-      let projectCosts = {};
-
-      att.forEach(a => {
-        if(a.status === 'completed') {
-          totalCost += a.totalCost || 0;
-          totalRegHours += a.regularHours || 0;
-          totalOTHours += a.overtimeHours || 0;
-          
-          if(!projectCosts[a.projectId]) projectCosts[a.projectId] = 0;
-          projectCosts[a.projectId] += (a.totalCost || 0);
-        }
-      });
-
-      const chartData = projects.map(p => ({
-        name: p.name,
-        cost: projectCosts[p.id] || 0
-      }));
-
-      return {
-        activeWorkersToday: new Set(todayAtt.map(a => a.userId)).size,
-        totalCost,
-        totalHours: totalRegHours + totalOTHours,
-        totalOvertime: totalOTHours,
-        chartData
-      };
-    }
-  }
-};
-
-// ==========================================
-// 3. ARCHITECTURE: BUSINESS LOGIC LAYER
-// ==========================================
-const BusinessLogic = {
-  // Haversine formula for GPS Geofencing
-  calculateDistance: (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3;
-    const p1 = lat1 * Math.PI / 180;
-    const p2 = lat2 * Math.PI / 180;
-    const deltaP = (lat2 - lat1) * Math.PI / 180;
-    const deltaLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(deltaP/2) * Math.sin(deltaP/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // in meters
-  },
-  
-  // Hours Calculation
-  calculateHours: (checkInISO, checkOutISO) => {
-    const inTime = new Date(checkInISO).getTime();
-    const outTime = new Date(checkOutISO).getTime();
-    const diffHours = (outTime - inTime) / (1000 * 60 * 60);
-    
-    // Assuming 8 hours regular, rest is overtime (Can be configured per company policy)
-    const regular = Math.min(diffHours, 8);
-    const overtime = Math.max(0, diffHours - 8);
-    
-    return { regular, overtime, total: diffHours };
-  },
-
-  // Labor Cost Calculation (Job Costing)
-  calculateLaborCost: (regHours, otHours, regRate, otRate) => {
-    const regCost = regHours * regRate;
-    const otCost = otHours * otRate;
-    return { regularCost: regCost, overtimeCost: otCost, totalCost: regCost + otCost };
-  }
-};
-
-// ==========================================
-// 4. CONTEXT & STATE MANAGEMENT
-// ==========================================
-const AuthContext = createContext(null);
-
-// ==========================================
-// 5. UI COMPONENTS: VIEWS
-// ==========================================
-
-const LoginView = () => {
-  const { login } = useContext(AuthContext);
-  const [id, setId] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await login(id, password);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 font-[Tajawal]" dir="rtl">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-900 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
-            <Activity className="text-blue-400 w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">أركان الخليج (ERP)</h1>
-          <p className="text-sm text-slate-500 mt-1">نظام إدارة المشاريع وتكاليف العمالة</p>
+    <!-- شاشة تسجيل الدخول -->
+    <div id="view-login" class="min-h-screen flex items-center justify-center bg-slate-100 p-4 fade-in">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 relative overflow-hidden">
+            <div class="text-center mb-8 relative z-10">
+                <div class="w-16 h-16 bg-blue-900 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
+                    <i class="ph-fill ph-buildings text-blue-400 text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800">أركان الخليج (ERP)</h1>
+                <p class="text-sm text-slate-500 mt-1">نظام إدارة المشاريع وتكاليف العمالة</p>
+            </div>
+            <form id="form-login" class="space-y-4 relative z-10">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">رقم المستخدم (ID)</label>
+                    <input type="text" id="login-id" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center" required placeholder="مثال: 1000" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="login-pass" class="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center" required placeholder="***" dir="ltr">
+                </div>
+                <div id="login-error" class="hide p-3 bg-red-50 text-red-700 rounded-lg text-sm font-bold flex items-center gap-2">
+                    <i class="ph-fill ph-warning-circle"></i> <span id="login-error-msg"></span>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md">تسجيل الدخول</button>
+            </form>
+            <div class="mt-6 text-xs text-slate-400 text-center font-mono">
+                Admin: 1000 | PM: 2000 | Worker: 1001, 1002<br>Password: 123
+            </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">رقم المستخدم (ID)</label>
-            <input type="text" value={id} onChange={e => setId(e.target.value)} className="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500" required />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">كلمة المرور</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500" required />
-          </div>
-          {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-bold flex items-center gap-2"><ShieldAlert size={16}/> {error}</div>}
-          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all">تسجيل الدخول</button>
-        </form>
-        <div className="mt-6 text-xs text-slate-400 text-center">
-          Admin: 1000 | PM: 2000 | Worker: 1001, 1002 (Pass: 123)
-        </div>
-      </div>
     </div>
-  );
-};
 
-// --- WORKER VIEW ---
-const WorkerView = () => {
-  const { user, logout } = useContext(AuthContext);
-  const [session, setSession] = useState(null);
-  const [projects] = useState(DB.get('projects').filter(p => p.status === STATUS.ACTIVE));
-  const [villas] = useState(DB.get('villas'));
-  const [activities] = useState(DB.get('activities'));
-  
-  const [selProject, setSelProject] = useState('');
-  const [selVilla, setSelVilla] = useState('');
-  const [selActivity, setSelActivity] = useState('');
-  const [prodQty, setProdQty] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Check if worker has an active session
-    const att = DB.get('attendance');
-    const active = att.find(a => a.userId === user.id && a.status === 'working');
-    if (active) setSession(active);
-  }, [user.id]);
-
-  const handleCheckIn = () => {
-    setError('');
-    if(!selProject || !selActivity) {
-      setError('يجب اختيار المشروع والنشاط');
-      return;
-    }
-    
-    setLoading(true);
-    const project = projects.find(p => p.id === selProject);
-
-    if (!navigator.geolocation) {
-      setError('الجهاز لا يدعم تحديد الموقع');
-      setLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const distance = BusinessLogic.calculateDistance(pos.coords.latitude, pos.coords.longitude, project.lat, project.lng);
-      
-      if (distance > project.radius) {
-        setError(`أنت خارج نطاق المشروع بمسافة ${Math.round(distance)} متر. لا يمكن تسجيل الحضور.`);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const newSession = await api.attendance.checkIn(user.id, {
-          projectId: selProject,
-          villaId: selVilla,
-          activityId: selActivity,
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        });
-        setSession(newSession);
-      } catch (err) {
-        setError('حدث خطأ أثناء التسجيل');
-      }
-      setLoading(false);
-    }, (err) => {
-      setError('يرجى تفعيل صلاحية الموقع (GPS)');
-      setLoading(false);
-    }, { enableHighAccuracy: true });
-  };
-
-  const handleCheckOut = async () => {
-    setLoading(true);
-    try {
-      await api.attendance.checkOut(session.id, {
-        productionQty: Number(prodQty) || 0,
-        productionUnit: 'وحدة'
-      });
-      setSession(null);
-      setSelProject(''); setSelVilla(''); setSelActivity(''); setProdQty('');
-      alert('تم إنهاء العمل بنجاح وحساب التكلفة والإنتاجية للإدارة.');
-    } catch(err) {
-      setError(err.message);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-[Tajawal]" dir="rtl">
-      <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
-        <div>
-          <h1 className="font-bold text-slate-800 text-lg">بوابة العمال والإنتاج</h1>
-          <p className="text-xs text-slate-500">{user.name} | معدل الأجر: {user.hourlyRate} ر.س/ساعة</p>
-        </div>
-        <button onClick={logout} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:text-red-600"><LogOut size={20}/></button>
-      </header>
-
-      <main className="p-4 max-w-md mx-auto mt-4 space-y-6">
-        {error && <div className="p-4 bg-red-50 text-red-700 rounded-xl flex items-start gap-3 text-sm font-bold border border-red-100"><ShieldAlert className="shrink-0"/> {error}</div>}
-
-        {!session ? (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <h2 className="font-bold text-slate-800 flex items-center gap-2 border-b pb-2"><Play className="text-emerald-500"/> بدء جلسة عمل جديدة</h2>
-            
+    <!-- شاشة العامل -->
+    <div id="view-worker" class="hide min-h-screen bg-slate-50 flex flex-col fade-in">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-200">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">المشروع (Required)</label>
-              <select value={selProject} onChange={e => setSelProject(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50 outline-none">
-                <option value="">-- اختر المشروع --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+                <h1 class="font-bold text-slate-800 text-lg">بوابة العمال والإنتاج</h1>
+                <p id="worker-header-info" class="text-xs text-emerald-600 font-bold"></p>
             </div>
-            
-            {selProject && (
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">المبنى / الفيلا (Optional)</label>
-                <select value={selVilla} onChange={e => setSelVilla(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50 outline-none">
-                  <option value="">-- عام على المشروع --</option>
-                  {villas.filter(v => v.projectId === selProject).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">نوع العمل / النشاط (Required)</label>
-              <select value={selActivity} onChange={e => setSelActivity(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50 outline-none">
-                <option value="">-- اختر النشاط --</option>
-                {activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-
-            <button onClick={handleCheckIn} disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 mt-4 transition-all">
-              {loading ? <Activity className="animate-spin" /> : <MapPin />} تسجيل الحضور (فحص GPS)
+            <button onclick="appLogout()" class="w-10 h-10 bg-slate-100 hover:bg-red-50 rounded-full flex items-center justify-center text-slate-600 hover:text-red-600 transition-colors">
+                <i class="ph-bold ph-power text-xl"></i>
             </button>
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-6">
-            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-pulse">
-              <Clock size={40} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">أنت في العمل الآن</h2>
-              <p className="text-sm text-slate-500 mt-1">المشروع: {projects.find(p=>p.id===session.projectId)?.name}</p>
-              <p className="text-xs text-blue-600 font-bold mt-2 bg-blue-50 inline-block px-3 py-1 rounded-full">دخول: {new Date(session.checkInTime).toLocaleTimeString('ar-SA')}</p>
+        </header>
+
+        <main class="flex-1 p-4 max-w-md mx-auto w-full mt-4 space-y-6">
+            <div id="worker-error" class="hide p-4 bg-red-50 text-red-700 rounded-xl flex items-start gap-3 text-sm font-bold border border-red-100">
+                <i class="ph-fill ph-warning-circle text-lg"></i> <span id="worker-error-msg"></span>
             </div>
 
-            <div className="text-right border-t pt-4">
-              <label className="block text-sm font-bold text-slate-700 mb-2">كمية الإنتاج المنجزة (اختياري للإدارة):</label>
-              <div className="flex gap-2">
-                <input type="number" value={prodQty} onChange={e=>setProdQty(e.target.value)} placeholder="مثال: 5" className="flex-1 p-3 border rounded-xl bg-slate-50 outline-none" />
-                <span className="p-3 bg-slate-100 rounded-xl text-slate-500 font-bold">وحدة</span>
-              </div>
+            <div id="worker-toast" class="hide p-4 bg-emerald-50 text-emerald-700 rounded-xl flex items-start gap-3 text-sm font-bold border border-emerald-100">
+                <i class="ph-fill ph-check-circle text-lg"></i> <span id="worker-toast-msg"></span>
             </div>
 
-            <button onClick={handleCheckOut} disabled={loading} className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-all">
-              {loading ? <Activity className="animate-spin" /> : <Square />} إنهاء العمل (انصراف)
-            </button>
-          </div>
-        )}
-      </main>
+            <!-- حالة تسجيل الحضور -->
+            <div id="worker-state-checkin" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4"><i class="ph-fill ph-play-circle text-emerald-500 text-xl"></i> بدء جلسة عمل جديدة</h2>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المشروع (Required)</label>
+                    <select id="worker-sel-project" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                </div>
+                
+                <div id="worker-villa-container" class="hide">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المبنى / الفيلا (Optional)</label>
+                    <select id="worker-sel-villa" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">نوع العمل / النشاط (Required)</label>
+                    <select id="worker-sel-activity" class="w-full p-3 border rounded-xl bg-slate-50 outline-none font-bold text-slate-700"></select>
+                </div>
+
+                <button onclick="handleCheckIn(false)" id="btn-checkin" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 mt-6 transition-all shadow-md">
+                    <i class="ph-bold ph-map-pin"></i> تسجيل الحضور (فحص GPS)
+                </button>
+                <button onclick="handleCheckIn(true)" class="w-full text-[10px] text-slate-400 underline mt-2 text-center">تجاوز الـ GPS (للتجربة من الكمبيوتر)</button>
+            </div>
+
+            <!-- حالة العمل الفعلي -->
+            <div id="worker-state-working" class="hide bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-6">
+                <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-pulse">
+                    <i class="ph-duotone ph-clock text-4xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">أنت في العمل الآن</h2>
+                    <p id="worker-curr-proj" class="text-sm text-slate-500 mt-1 font-bold"></p>
+                    <p class="text-xs text-blue-600 font-bold mt-2 bg-blue-50 inline-block px-3 py-1.5 rounded-full border border-blue-100">
+                        وقت الدخول: <span id="worker-time-in" dir="ltr"></span>
+                    </p>
+                </div>
+
+                <div class="text-right border-t border-slate-100 pt-4 mt-4">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">كمية الإنتاج المنجزة (مطلوب لتقييم التكلفة):</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="worker-prod-qty" placeholder="مثال: 5" class="flex-1 p-3 border rounded-xl bg-slate-50 outline-none font-bold text-center">
+                        <span class="p-3 bg-slate-100 rounded-xl text-slate-500 font-bold border">وحدة</span>
+                    </div>
+                </div>
+
+                <button onclick="handleCheckOut()" id="btn-checkout" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-all shadow-md">
+                    <i class="ph-bold ph-stop-circle"></i> إنهاء العمل (انصراف)
+                </button>
+            </div>
+        </main>
     </div>
-  );
-};
 
-// --- ADMIN / MANAGEMENT VIEW ---
-const AdminView = () => {
-  const { user, logout } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [stats, setStats] = useState(null);
+    <!-- شاشة الإدارة -->
+    <div id="view-admin" class="hide flex h-screen bg-slate-100 fade-in w-full">
+        <!-- القائمة الجانبية -->
+        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 z-20 shadow-xl">
+            <div class="p-6 bg-slate-950 flex items-center gap-3 border-b border-slate-800">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-inner"><i class="ph-fill ph-hexagon text-white text-2xl"></i></div>
+                <div>
+                    <h1 class="text-white font-bold text-lg leading-tight">نظام ERP</h1>
+                    <p class="text-[10px] text-blue-400 font-medium">إدارة التكاليف الشاملة</p>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <button onclick="switchAdminTab('dashboard')" id="tab-btn-dashboard" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all bg-blue-600 text-white shadow-md"><i class="ph-duotone ph-chart-line-up text-xl"></i> اللوحة المالية</button>
+                <button onclick="switchAdminTab('attendance')" id="tab-btn-attendance" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-clock text-xl"></i> سجل الجلسات</button>
+                <button onclick="switchAdminTab('productivity')" id="tab-btn-productivity" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-trend-up text-xl"></i> الإنتاجية والتكاليف</button>
+                <button onclick="switchAdminTab('setup')" id="tab-btn-setup" class="admin-tab w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white"><i class="ph-duotone ph-gear text-xl"></i> إدارة النظام (الكيانات)</button>
+            </nav>
+            <div class="p-4 border-t border-slate-800 bg-slate-950">
+                <div class="text-xs mb-3 text-slate-400 px-2 flex items-center gap-2"><i class="ph-fill ph-user-circle text-lg"></i> <span id="admin-user-info"></span></div>
+                <button onclick="appLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700 hover:border-rose-500"><i class="ph-bold ph-power"></i> تسجيل الخروج</button>
+            </div>
+        </aside>
 
-  useEffect(() => {
-    api.data.getDashboardStats().then(setStats);
-  }, [activeTab]); // Refresh stats when tab changes
+        <!-- المحتوى الرئيسي للإدارة -->
+        <main class="flex-1 overflow-y-auto relative bg-slate-50">
+            <header class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+                <h2 id="admin-header-title" class="text-xl font-bold text-slate-800">اللوحة المالية</h2>
+                <div class="text-sm font-bold text-slate-500 flex items-center gap-2"><i class="ph-duotone ph-calendar-blank text-blue-600"></i> <span id="admin-date"></span></div>
+            </header>
 
-  const TABS = [
-    { id: 'dashboard', icon: <LayoutDashboard size={20}/>, label: 'اللوحة المالية' },
-    { id: 'attendance', icon: <Clock size={20}/>, label: 'سجل الجلسات' },
-    { id: 'productivity', icon: <TrendingUp size={20}/>, label: 'الإنتاجية والتكاليف' },
-    { id: 'setup', icon: <Settings size={20}/>, label: 'إدارة النظام (الكيانات)' }
-  ];
+            <div class="p-8 max-w-7xl mx-auto">
+                
+                <!-- تبويب اللوحة المالية -->
+                <div id="admin-tab-dashboard" class="admin-content space-y-6 fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-colors relative overflow-hidden">
+                            <i class="ph-duotone ph-money absolute left-[-10px] bottom-[-10px] text-6xl text-emerald-100"></i>
+                            <p class="text-sm text-slate-500 font-bold relative z-10">إجمالي تكلفة العمالة</p>
+                            <h3 class="text-3xl font-black text-emerald-600 mt-2 relative z-10"><span id="dash-cost">0</span> <span class="text-sm font-normal text-slate-400">ر.س</span></h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-colors relative overflow-hidden">
+                            <i class="ph-duotone ph-clock absolute left-[-10px] bottom-[-10px] text-6xl text-blue-100"></i>
+                            <p class="text-sm text-slate-500 font-bold relative z-10">إجمالي ساعات العمل</p>
+                            <h3 class="text-3xl font-black text-blue-600 mt-2 relative z-10"><span id="dash-hours">0</span> <span class="text-sm font-normal text-slate-400">ساعة</span></h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-300 transition-colors relative overflow-hidden">
+                            <i class="ph-duotone ph-timer absolute left-[-10px] bottom-[-10px] text-6xl text-rose-100"></i>
+                            <p class="text-sm text-slate-500 font-bold relative z-10">الساعات الإضافية (OT)</p>
+                            <h3 class="text-3xl font-black text-rose-600 mt-2 relative z-10"><span id="dash-ot">0</span> <span class="text-sm font-normal text-slate-400">ساعة</span></h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-colors relative overflow-hidden">
+                            <i class="ph-duotone ph-users absolute left-[-10px] bottom-[-10px] text-6xl text-indigo-100"></i>
+                            <p class="text-sm text-slate-500 font-bold relative z-10">عمال نشطين اليوم</p>
+                            <h3 class="text-3xl font-black text-indigo-600 mt-2 relative z-10"><span id="dash-workers">0</span> <span class="text-sm font-normal text-slate-400">عامل</span></h3>
+                        </div>
+                    </div>
 
-  return (
-    <div className="flex h-screen bg-slate-100 font-[Tajawal]" dir="rtl">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col">
-        <div className="p-6 bg-slate-950 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><Activity className="text-white" size={18}/></div>
-          <div><h1 className="text-white font-bold text-lg">نظام ERP</h1><p className="text-[10px] text-blue-400">إدارة التكاليف الشاملة</p></div>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-slate-800">
-          <div className="text-xs mb-3 text-slate-400 px-2">مرحباً، {user.name} ({user.role})</div>
-          <button onClick={logout} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-red-600 hover:text-white rounded-lg text-sm transition-colors"><LogOut size={16}/> خروج</button>
-        </div>
-      </aside>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                        <h3 class="font-bold text-slate-700 mb-6 flex items-center gap-2"><i class="ph-duotone ph-chart-bar text-blue-500 text-xl"></i> تكلفة العمالة الموزعة على المشاريع (Job Costing)</h3>
+                        <div class="w-full h-80 relative">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+                </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-6xl mx-auto">
-          {activeTab === 'dashboard' && stats && (
-            <div className="space
+                <!-- تبويب الإنتاجية والتكاليف -->
+                <div id="admin-tab-productivity" class="admin-content hide space-y-6 fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800">تقارير الإنتاجية والتكلفة لكل وحدة</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-sm">
+                                <thead class="bg-white text-slate-600 border-b">
+                                    <tr>
+                                        <th class="p-4 font-bold">تاريخ الجلسة</th>
+                                        <th class="p-4 font-bold">العامل</th>
+                                        <th class="p-4 font-bold">النشاط (Activity)</th>
+                                        <th class="p-4 font-bold">إجمالي الساعات</th>
+                                        <th class="p-4 font-bold">تكلفة العمالة</th>
+                                        <th class="p-4 font-bold">الكمية المنجزة</th>
+                                        <th class="p-4 font-bold">تكلفة الوحدة (Labor Cost/Unit)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-productivity" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويب إدارة الكيانات -->
+                <div id="admin-tab-setup" class="admin-content hide space-y-6 fade-in">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                            <div class="p-5 bg-blue-50 border-b border-blue-100"><h3 class="font-bold text-blue-800 flex items-center gap-2"><i class="ph-fill ph-users text-xl"></i> العمال والموظفين (تسعير التكلفة)</h3></div>
+                            <div class="p-0 overflow-y-auto flex-1">
+                                <ul id="list-users" class="divide-y divide-slate-100"></ul>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                            <div class="p-5 bg-emerald-50 border-b border-emerald-100"><h3 class="font-bold text-emerald-800 flex items-center gap-2"><i class="ph-fill ph-buildings text-xl"></i> المشاريع (نطاقات البصمة)</h3></div>
+                            <div class="p-0 overflow-y-auto flex-1">
+                                <ul id="list-projects" class="divide-y divide-slate-100"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويب سجل الحضور -->
+                <div id="admin-tab-attendance" class="admin-content hide space-y-6 fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800">سجل الجلسات الشامل (Time Sessions)</h3>
+                            <button onclick="renderAttendance()" class="text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition-colors"><i class="ph-bold ph-arrows-clockwise"></i> تحديث</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-sm">
+                                <thead class="bg-white text-slate-600 border-b">
+                                    <tr>
+                                        <th class="p-4 font-bold">العامل</th>
+                                        <th class="p-4 font-bold">المشروع / النشاط</th>
+                                        <th class="p-4 font-bold">الدخول</th>
+                                        <th class="p-4 font-bold">الخروج</th>
+                                        <th class="p-4 font-bold">الساعات (أساسي/OT)</th>
+                                        <th class="p-4 font-bold">التكلفة المحتسبة</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-attendance" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. DATA MODELS & CONSTANTS
+        // ==========================================
+        const ROLES = { ADMIN: 'Admin', PM: '
